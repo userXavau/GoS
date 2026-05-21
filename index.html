@@ -641,6 +641,52 @@ button {
   text-align: center;
 }
 
+/* Mode toggle */
+.mode-toggle {
+  display: flex;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px;
+  margin: 24px 0 8px;
+  gap: 4px;
+}
+
+.mode-option {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  padding: 12px 16px;
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.mode-option:hover {
+  color: var(--ink);
+}
+
+.mode-option.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.mode-option-sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
 .checkbox-hint {
   font-family: var(--mono);
   font-size: 11px;
@@ -729,7 +775,9 @@ let state = {
   lastCorrect: null,
   reviewFilter: 'wrong',
   modal: null,
-  selectedDisciplines: new Set(DISCIPLINE_LIST)  // all selected by default
+  selectedDisciplines: new Set(DISCIPLINE_LIST),  // all selected by default
+  mode: 'full',  // 'full' or 'short' (12 random per discipline)
+  shortPerDiscipline: 12
 };
 
 const app = document.getElementById('app');
@@ -874,11 +922,24 @@ function render() {
 }
 
 function renderWelcome() {
-  // Compute counts based on currently selected disciplines
+  // Active set under current discipline selection
   const activeQs = ALL_QUESTIONS.filter(q => state.selectedDisciplines.has(q.discipline || 'Без дисциплины'));
-  const closedCount = activeQs.filter(q => q.type === 'closed').length;
-  const matchingCount = activeQs.filter(q => q.type === 'matching').length;
-  const openCount = activeQs.filter(q => q.type === 'open').length;
+  
+  // Compute count under current mode
+  let modeQs;
+  if (state.mode === 'short') {
+    // 12 per selected discipline (or fewer if discipline has less)
+    let n = 0;
+    DISCIPLINE_LIST.forEach(name => {
+      if (!state.selectedDisciplines.has(name)) return;
+      n += Math.min(state.shortPerDiscipline, DISCIPLINE_COUNTS[name]);
+    });
+    modeQs = n;
+  } else {
+    modeQs = activeQs.length;
+  }
+  
+  const selectedDisciplineCount = state.selectedDisciplines.size;
   
   app.innerHTML = `
     <div class="header">
@@ -887,22 +948,26 @@ function renderWelcome() {
     </div>
     <div class="card welcome">
       <p>Все вопросы из твоего документа в случайном порядке. По каждому — мгновенная проверка.</p>
-      <div class="welcome-stats">
+      
+      <div class="mode-toggle">
+        <button class="mode-option ${state.mode === 'short' ? 'active' : ''}" onclick="setMode('short')">
+          Короткий
+          <span class="mode-option-sub">${state.shortPerDiscipline} с дисциплины</span>
+        </button>
+        <button class="mode-option ${state.mode === 'full' ? 'active' : ''}" onclick="setMode('full')">
+          Полный
+          <span class="mode-option-sub">все вопросы</span>
+        </button>
+      </div>
+      
+      <div class="welcome-stats" style="margin-top:16px">
         <div>
-          <div class="welcome-stat-number">${activeQs.length}</div>
-          <div class="welcome-stat-label">Вопросов</div>
+          <div class="welcome-stat-number">${modeQs}</div>
+          <div class="welcome-stat-label">${state.mode === 'short' ? 'В тесте' : 'Вопросов'}</div>
         </div>
         <div>
-          <div class="welcome-stat-number">${closedCount}</div>
-          <div class="welcome-stat-label">Закрытых</div>
-        </div>
-        <div>
-          <div class="welcome-stat-number">${matchingCount}</div>
-          <div class="welcome-stat-label">Соответствий</div>
-        </div>
-        <div>
-          <div class="welcome-stat-number">${openCount}</div>
-          <div class="welcome-stat-label">Открытых</div>
+          <div class="welcome-stat-number">${selectedDisciplineCount}</div>
+          <div class="welcome-stat-label">Дисциплин</div>
         </div>
       </div>
       
@@ -916,19 +981,23 @@ function renderWelcome() {
         </div>
         ${DISCIPLINE_LIST.map(name => {
           const checked = state.selectedDisciplines.has(name);
+          const total = DISCIPLINE_COUNTS[name];
+          const inTest = state.mode === 'short' 
+            ? Math.min(state.shortPerDiscipline, total) 
+            : total;
           return `
             <div class="discipline-checkbox ${checked ? 'checked' : ''}" onclick="toggleDiscipline(${JSON.stringify(name).replace(/"/g,'&quot;')})">
               <div class="discipline-checkbox-box"></div>
               <div class="discipline-checkbox-name">${escapeHtml(name)}</div>
-              <div class="discipline-checkbox-count">${DISCIPLINE_COUNTS[name]} вопр.</div>
+              <div class="discipline-checkbox-count">${state.mode === 'short' && checked ? inTest + ' из ' + total : total + ' вопр.'}</div>
             </div>
           `;
         }).join('')}
       </div>
       
       <p style="font-size:13px;color:var(--ink-faint)">Можно завершить тест в любой момент и посмотреть статистику.</p>
-      <button class="btn-primary start-btn" onclick="startTest()" ${activeQs.length === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
-        Начать тест ${activeQs.length > 0 ? `· ${activeQs.length} вопр.` : ''}
+      <button class="btn-primary start-btn" onclick="startTest()" ${modeQs === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
+        Начать ${modeQs > 0 ? `· ${modeQs} вопр.` : ''}
       </button>
     </div>
   `;
@@ -944,10 +1013,26 @@ function shuffleArray(arr) {
 }
 
 function startTest() {
-  // Build active pool from selected disciplines, then shuffle
   const selected = state.selectedDisciplines;
-  const filtered = ALL_QUESTIONS.filter(q => selected.has(q.discipline || 'Без дисциплины'));
-  if (filtered.length === 0) {
+  
+  let pool;
+  if (state.mode === 'short') {
+    // For each selected discipline, take N random questions
+    pool = [];
+    DISCIPLINE_LIST.forEach(name => {
+      if (!selected.has(name)) return;
+      const fromThisDisc = ALL_QUESTIONS.filter(q => (q.discipline || 'Без дисциплины') === name);
+      const shuffled = shuffleArray(fromThisDisc);
+      pool.push(...shuffled.slice(0, state.shortPerDiscipline));
+    });
+    pool = shuffleArray(pool);  // mix disciplines together
+  } else {
+    // Full mode: all questions from selected disciplines
+    const filtered = ALL_QUESTIONS.filter(q => selected.has(q.discipline || 'Без дисциплины'));
+    pool = shuffleArray(filtered);
+  }
+  
+  if (pool.length === 0) {
     showModal({
       title: 'Не выбрана ни одна дисциплина',
       body: 'Отметь хотя бы одну дисциплину на главном экране.',
@@ -955,12 +1040,17 @@ function startTest() {
     });
     return;
   }
-  QUESTIONS = shuffleArray(filtered);
+  QUESTIONS = pool;
   state.screen = 'question';
   state.index = 0;
   state.answers = [];
   state.showFeedback = false;
   state.currentAnswer = null;
+  render();
+}
+
+function setMode(mode) {
+  state.mode = mode;
   render();
 }
 
