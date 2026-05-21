@@ -22,6 +22,20 @@
   --mono: 'JetBrains Mono', monospace;
 }
 
+[data-theme="light"] {
+  --bg: #faf6ef;
+  --bg-card: #fffaf2;
+  --bg-elevated: #f0e8db;
+  --ink: #2a2520;
+  --ink-dim: #6b645c;
+  --ink-faint: #9b9388;
+  --accent: #b8864d;
+  --accent-hot: #d44a1a;
+  --correct: #5a8a2a;
+  --wrong: #c84545;
+  --border: #e0d5c2;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -33,6 +47,54 @@ body {
   background-image: 
     radial-gradient(at 20% 10%, rgba(212, 165, 116, 0.08) 0%, transparent 50%),
     radial-gradient(at 80% 80%, rgba(255, 107, 61, 0.05) 0%, transparent 50%);
+}
+
+[data-theme="light"] body {
+  background-image: 
+    radial-gradient(at 20% 10%, rgba(184, 134, 77, 0.12) 0%, transparent 50%),
+    radial-gradient(at 80% 80%, rgba(212, 74, 26, 0.06) 0%, transparent 50%);
+}
+
+/* Theme switcher (top-right corner) */
+.theme-switch {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px;
+  display: flex;
+  gap: 2px;
+}
+
+.theme-switch button {
+  background: transparent;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  font-size: 16px;
+  padding: 0;
+  transition: all 0.15s;
+}
+
+.theme-switch button:hover { color: var(--ink); }
+
+.theme-switch button.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+@media (max-width: 600px) {
+  .theme-switch { top: 12px; right: 12px; padding: 4px; }
+  .theme-switch button { width: 28px; height: 28px; font-size: 14px; }
 }
 
 .container { max-width: 760px; margin: 0 auto; }
@@ -749,6 +811,10 @@ button {
 </style>
 </head>
 <body>
+<div class="theme-switch" id="themeSwitch">
+  <button id="themeBtnDark" onclick="setTheme('dark')" title="Тёмная тема">☾</button>
+  <button id="themeBtnLight" onclick="setTheme('light')" title="Светлая тема">☀</button>
+</div>
 <div class="container" id="app"></div>
 <div id="modal-root"></div>
 
@@ -782,6 +848,19 @@ let state = {
 
 const app = document.getElementById('app');
 const modalRoot = document.getElementById('modal-root');
+
+function setTheme(name) {
+  if (name === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  document.getElementById('themeBtnDark').classList.toggle('active', name === 'dark');
+  document.getElementById('themeBtnLight').classList.toggle('active', name === 'light');
+}
+
+// Init: default to dark
+setTheme('dark');
 
 function normalize(s) {
   if (!s) return '';
