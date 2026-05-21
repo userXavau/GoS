@@ -703,6 +703,72 @@ button {
   text-align: center;
 }
 
+/* Break suggestion block */
+.break-suggestion {
+  margin-top: 32px;
+  padding: 20px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  text-align: left;
+  background: linear-gradient(135deg, transparent, rgba(212, 165, 116, 0.04));
+  transition: all 0.2s;
+}
+
+.break-suggestion:hover {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, transparent, rgba(212, 165, 116, 0.08));
+}
+
+.break-suggestion-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.break-suggestion-body {
+  flex: 1;
+}
+
+.break-suggestion-title {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 16px;
+  font-style: italic;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.break-suggestion-text {
+  font-size: 13px;
+  color: var(--ink-dim);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.break-suggestion-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 2px;
+  transition: color 0.15s;
+}
+
+.break-suggestion-link:hover {
+  color: var(--accent-hot);
+  border-bottom-color: var(--accent-hot);
+}
+
+@media (max-width: 500px) {
+  .break-suggestion { flex-direction: column; text-align: center; }
+}
+
 /* Mode toggle */
 .mode-toggle {
   display: flex;
@@ -1078,6 +1144,17 @@ function renderWelcome() {
       <button class="btn-primary start-btn" onclick="startTest()" ${modeQs === 0 ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>
         Начать ${modeQs > 0 ? `· ${modeQs} вопр.` : ''}
       </button>
+      
+      <div class="break-suggestion">
+        <div class="break-suggestion-icon">🐍</div>
+        <div class="break-suggestion-body">
+          <div class="break-suggestion-title">Устал готовиться?</div>
+          <div class="break-suggestion-text">Сделай паузу — поиграй в змейку, потом продолжишь со свежей головой.</div>
+          <a href="https://pavel-hacker.github.io/snake-game-team/" target="_blank" rel="noopener" class="break-suggestion-link">
+            Поиграть →
+          </a>
+        </div>
+      </div>
     </div>
   `;
 }
