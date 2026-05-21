@@ -364,6 +364,160 @@ button {
   letter-spacing: 0.05em;
 }
 
+.results-time {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.results-time-main {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--accent);
+  display: block;
+}
+.results-time-sub {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-faint);
+  margin-top: 4px;
+}
+
+/* Sound toggle (next to theme switch) */
+.sound-toggle {
+  position: fixed;
+  top: 20px;
+  right: 100px;
+  z-index: 100;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--ink-faint);
+  font-size: 16px;
+  padding: 0;
+  transition: all 0.15s;
+}
+.sound-toggle:hover { color: var(--ink); border-color: var(--accent); }
+.sound-toggle.on { color: var(--accent); }
+@media (max-width: 600px) {
+  .sound-toggle { top: 12px; right: 88px; width: 32px; height: 32px; font-size: 14px; }
+}
+
+/* History panel */
+.history-panel {
+  margin-top: 24px;
+  text-align: left;
+}
+.history-empty {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  text-align: center;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+}
+.history-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.history-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.history-percent {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 18px;
+  min-width: 56px;
+  text-align: right;
+}
+.history-detail {
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+/* Bookmark button on question card */
+.bookmark-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink-faint);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bookmark-btn:hover { color: var(--accent); border-color: var(--accent); }
+.bookmark-btn.active { color: var(--accent); background: rgba(212,165,116,0.1); border-color: var(--accent); }
+
+/* Explain button in feedback */
+.explain-btn {
+  margin-top: 10px;
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+  padding-bottom: 2px;
+}
+.explain-btn:hover { color: var(--accent-hot); border-bottom-color: var(--accent-hot); }
+
+/* Mistakes button standalone */
+.mistakes-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--wrong);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mistakes-btn:hover { background: rgba(229,115,115,0.08); }
+.mistakes-btn-count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--wrong);
+  background: rgba(229,115,115,0.15);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.mistakes-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
 .section-title {
   font-family: var(--mono);
   font-size: 11px;
@@ -898,6 +1052,99 @@ ALL_QUESTIONS.forEach(q => {
 });
 const DISCIPLINE_LIST = Object.keys(DISCIPLINE_COUNTS).sort();
 
+// ===== Storage layer (localStorage with graceful fallback) =====
+const STORAGE_KEY = 'gosy_tutor_v1';
+const memoryStore = {};
+
+function loadStore() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return memoryStore.data || null;
+  }
+}
+
+function saveStore(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    memoryStore.data = data;
+  }
+}
+
+function defaultStore() {
+  return {
+    history: [],          // [{date, total, correct, percent, durationSec, mode, disciplines}]
+    wrongQuestions: {},   // {questionKey: {wrongCount, lastWrong, mastered}}
+    bookmarks: {},        // {questionKey: {note, addedAt}}
+    settings: {soundOn: true}
+  };
+}
+
+let store = loadStore() || defaultStore();
+// Ensure all fields exist (forward compat)
+store.history = store.history || [];
+store.wrongQuestions = store.wrongQuestions || {};
+store.bookmarks = store.bookmarks || {};
+store.settings = store.settings || {soundOn: true};
+
+function questionKey(q) {
+  // Use first 80 chars of question text as stable key
+  return (q.question || '').slice(0, 80).trim();
+}
+
+// ===== Audio feedback =====
+let audioCtx = null;
+function playTone(freq, durationMs, type) {
+  if (!store.settings.soundOn) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + durationMs / 1000);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + durationMs / 1000);
+  } catch (e) {}
+}
+
+function soundCorrect() {}
+function soundWrong() {}
+
+// ===== Timer helpers =====
+function formatDuration(sec) {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+let timerInterval = null;
+function startTimer() {
+  state.startedAt = Date.now();
+  state.elapsedSec = 0;
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    state.elapsedSec = Math.floor((Date.now() - state.startedAt) / 1000);
+    const el = document.getElementById('timerDisplay');
+    if (el) el.textContent = formatDuration(state.elapsedSec);
+  }, 1000);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (state.startedAt) {
+    state.elapsedSec = Math.floor((Date.now() - state.startedAt) / 1000);
+  }
+}
+
 let state = {
   screen: 'welcome',
   index: 0,
@@ -907,9 +1154,12 @@ let state = {
   lastCorrect: null,
   reviewFilter: 'wrong',
   modal: null,
-  selectedDisciplines: new Set(DISCIPLINE_LIST),  // all selected by default
-  mode: 'full',  // 'full' or 'short' (12 random per discipline)
-  shortPerDiscipline: 12
+  selectedDisciplines: new Set(DISCIPLINE_LIST),
+  mode: 'full',           // 'full' | 'short' | 'mistakes'
+  shortPerDiscipline: 12,
+  startedAt: null,
+  elapsedSec: 0,
+  historyView: false      // welcome screen showing history panel
 };
 
 const app = document.getElementById('app');
@@ -927,6 +1177,40 @@ function setTheme(name) {
 
 // Init: default to dark
 setTheme('dark');
+
+function toggleSound() {
+  store.settings.soundOn = !store.settings.soundOn;
+  saveStore(store);
+  updateSoundToggle();
+  if (store.settings.soundOn) soundCorrect();  // confirmation chirp
+}
+function updateSoundToggle() {
+  const btn = document.getElementById('soundToggle');
+  if (!btn) return;
+  btn.textContent = store.settings.soundOn ? '🔊' : '🔇';
+  btn.classList.toggle('on', store.settings.soundOn);
+  btn.title = store.settings.soundOn ? 'Звук включён' : 'Звук выключен';
+}
+updateSoundToggle();
+
+function toggleBookmark(qKey) {
+  if (store.bookmarks[qKey]) {
+    delete store.bookmarks[qKey];
+  } else {
+    store.bookmarks[qKey] = {addedAt: Date.now()};
+  }
+  saveStore(store);
+  render();
+}
+
+function explainUrl(q) {
+  // Open a Claude.ai chat with a prefilled question
+  const question = q.question;
+  const answer = q.answer;
+  const options = q.options || '';
+  const prompt = `Объясни кратко (в 3-5 предложениях), почему правильный ответ на этот вопрос — именно тот, что указан.\n\nВопрос: ${question}\n${options ? 'Варианты: ' + options + '\n' : ''}Правильный ответ: ${answer}`;
+  return 'https://claude.ai/new?q=' + encodeURIComponent(prompt);
+}
 
 function normalize(s) {
   if (!s) return '';
@@ -1145,6 +1429,28 @@ function renderWelcome() {
         Начать ${modeQs > 0 ? `· ${modeQs} вопр.` : ''}
       </button>
       
+      ${(() => {
+        const wrongCount = Object.values(store.wrongQuestions).filter(w => !w.mastered).length;
+        return `
+          <button class="mistakes-btn" ${wrongCount === 0 ? 'disabled' : ''} onclick="startMistakesMode()">
+            <span>🎯 Работа над ошибками</span>
+            ${wrongCount > 0 
+              ? `<span class="mistakes-btn-count">${wrongCount} вопр.</span>` 
+              : `<span style="font-family:var(--mono);font-size:11px;color:var(--ink-faint)">пока пусто</span>`}
+          </button>
+        `;
+      })()}
+      
+      ${store.history.length > 0 ? `
+        <div class="history-panel">
+          <div class="discipline-picker-header">
+            <span class="discipline-picker-label">История прохождений</span>
+            <button class="quick-action" onclick="state.historyView = !state.historyView; render()">${state.historyView ? 'Скрыть' : 'Показать'}</button>
+          </div>
+          ${state.historyView ? renderHistoryList() : ''}
+        </div>
+      ` : ''}
+      
       <div class="break-suggestion">
         <div class="break-suggestion-icon">🐍</div>
         <div class="break-suggestion-body">
@@ -1157,6 +1463,31 @@ function renderWelcome() {
       </div>
     </div>
   `;
+}
+
+function renderHistoryList() {
+  if (store.history.length === 0) {
+    return '<div class="history-empty">Прохождений пока не было</div>';
+  }
+  const recent = store.history.slice().reverse().slice(0, 10);
+  return recent.map(h => {
+    const d = new Date(h.date);
+    const dateStr = d.toLocaleString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+    const color = h.percent >= 75 ? 'var(--correct)' : h.percent >= 50 ? 'var(--accent)' : 'var(--wrong)';
+    const modeLabel = h.mode === 'short' ? 'короткий' : h.mode === 'mistakes' ? 'ошибки' : 'полный';
+    return `
+      <div class="history-item">
+        <div class="history-date">${dateStr}</div>
+        <div class="history-detail">${h.correct}/${h.total} · ${formatDuration(h.durationSec)} · ${modeLabel}</div>
+        <div class="history-percent" style="color:${color}">${h.percent}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function startMistakesMode() {
+  state.mode = 'mistakes';
+  startTest();
 }
 
 function shuffleArray(arr) {
@@ -1172,8 +1503,14 @@ function startTest() {
   const selected = state.selectedDisciplines;
   
   let pool;
-  if (state.mode === 'short') {
-    // For each selected discipline, take N random questions
+  if (state.mode === 'mistakes') {
+    // All questions previously answered wrong (not yet mastered)
+    const wrongKeys = new Set(
+      Object.keys(store.wrongQuestions).filter(k => !store.wrongQuestions[k].mastered)
+    );
+    pool = ALL_QUESTIONS.filter(q => wrongKeys.has(questionKey(q)));
+    pool = shuffleArray(pool);
+  } else if (state.mode === 'short') {
     pool = [];
     DISCIPLINE_LIST.forEach(name => {
       if (!selected.has(name)) return;
@@ -1181,17 +1518,18 @@ function startTest() {
       const shuffled = shuffleArray(fromThisDisc);
       pool.push(...shuffled.slice(0, state.shortPerDiscipline));
     });
-    pool = shuffleArray(pool);  // mix disciplines together
+    pool = shuffleArray(pool);
   } else {
-    // Full mode: all questions from selected disciplines
     const filtered = ALL_QUESTIONS.filter(q => selected.has(q.discipline || 'Без дисциплины'));
     pool = shuffleArray(filtered);
   }
   
   if (pool.length === 0) {
     showModal({
-      title: 'Не выбрана ни одна дисциплина',
-      body: 'Отметь хотя бы одну дисциплину на главном экране.',
+      title: state.mode === 'mistakes' ? 'Нет ошибок для повторения' : 'Не выбрана ни одна дисциплина',
+      body: state.mode === 'mistakes' 
+        ? 'У тебя пока нет ошибок в истории. Пройди обычный тест, чтобы они появились.'
+        : 'Отметь хотя бы одну дисциплину на главном экране.',
       buttons: [{label: 'OK', style: 'btn-primary'}]
     });
     return;
@@ -1202,6 +1540,7 @@ function startTest() {
   state.answers = [];
   state.showFeedback = false;
   state.currentAnswer = null;
+  startTimer();
   render();
 }
 
@@ -1298,13 +1637,14 @@ function renderQuestion() {
       <div class="feedback ${wasCorrect ? 'correct' : 'wrong'}">
         <span class="label">${wasCorrect ? '✓ Верно' : '✗ Неверно'}</span>
         ${!wasCorrect ? `<div class="answer-text">Правильный ответ: <strong>${escapeHtml(q.answer)}</strong></div>` : ''}
+        <a href="${explainUrl(q)}" target="_blank" rel="noopener" class="explain-btn">💬 Объяснить с Claude →</a>
       </div>
     `;
   }
   
   app.innerHTML = `
     <div class="header">
-      <div class="eyebrow">Вопрос ${state.index + 1} из ${total}</div>
+      <div class="eyebrow">Вопрос ${state.index + 1} из ${total} · <span id="timerDisplay">${formatDuration(state.elapsedSec)}</span></div>
       <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
       <div class="progress-text">
         <span>${progress}%</span>
@@ -1316,9 +1656,16 @@ function renderQuestion() {
     </div>
     
     <div class="card">
-      <div class="q-meta">
-        <span class="q-type">${typeLabel}</span>
-        ${q.discipline ? `<span class="q-discipline">${escapeHtml(q.discipline)}</span>` : ''}
+      <div class="q-meta" style="justify-content:space-between;display:flex">
+        <div style="display:flex;gap:16px;flex-wrap:wrap">
+          <span class="q-type">${typeLabel}</span>
+          ${q.discipline ? `<span class="q-discipline">${escapeHtml(q.discipline)}</span>` : ''}
+        </div>
+        <button class="bookmark-btn ${store.bookmarks[questionKey(q)] ? 'active' : ''}" 
+                onclick="toggleBookmark('${questionKey(q).replace(/'/g, "\\'")}')" 
+                title="${store.bookmarks[questionKey(q)] ? 'Убрать из сложных' : 'Отметить как сложный'}">
+          ${store.bookmarks[questionKey(q)] ? '★' : '☆'}
+        </button>
       </div>
       <div class="q-text">${escapeHtml(q.question)}</div>
       ${q.options && q.type !== 'closed' ? `<div class="q-options">${escapeHtml(q.options)}</div>` : ''}
@@ -1379,10 +1726,34 @@ function submitAnswer() {
   });
   state.lastCorrect = isCorrect;
   state.showFeedback = true;
+  
+  // Track in persistent store
+  const key = questionKey(q);
+  if (!isCorrect) {
+    if (!store.wrongQuestions[key]) {
+      store.wrongQuestions[key] = {wrongCount: 0, lastWrong: 0, mastered: false};
+    }
+    store.wrongQuestions[key].wrongCount++;
+    store.wrongQuestions[key].lastWrong = Date.now();
+    store.wrongQuestions[key].mastered = false;
+    soundWrong();
+  } else {
+    // Right answer — if was in wrong list, mark as mastered after 2 correct in a row (simplified: just mark mastered)
+    if (store.wrongQuestions[key]) {
+      store.wrongQuestions[key].mastered = true;
+    }
+    soundCorrect();
+  }
+  saveStore(store);
   render();
 }
 
+function submitAnswerWithoutSound(isCorrect) {
+  // For "mark as known" flow if added later
+}
+
 function skipQuestion() {
+  const q = QUESTIONS[state.index];
   state.answers.push({
     qIndex: state.index,
     userAnswer: '(пропущено)',
@@ -1390,6 +1761,15 @@ function skipQuestion() {
   });
   state.lastCorrect = false;
   state.showFeedback = true;
+  // Skipped = treat as wrong for tracking
+  const key = questionKey(q);
+  if (!store.wrongQuestions[key]) {
+    store.wrongQuestions[key] = {wrongCount: 0, lastWrong: 0, mastered: false};
+  }
+  store.wrongQuestions[key].wrongCount++;
+  store.wrongQuestions[key].lastWrong = Date.now();
+  store.wrongQuestions[key].mastered = false;
+  saveStore(store);
   render();
 }
 
@@ -1399,8 +1779,30 @@ function nextQuestion() {
   state.index++;
   if (state.index >= QUESTIONS.length) {
     state.screen = 'results';
+    finalizeTest();
   }
   render();
+}
+
+function finalizeTest() {
+  stopTimer();
+  const total = state.answers.length;
+  if (total === 0) return;
+  const correct = state.answers.filter(a => a.isCorrect).length;
+  const percent = Math.round(correct / total * 100);
+  const disciplines = Array.from(new Set(state.answers.map(a => QUESTIONS[a.qIndex].discipline || 'Без дисциплины')));
+  store.history.push({
+    date: Date.now(),
+    total: total,
+    correct: correct,
+    percent: percent,
+    durationSec: state.elapsedSec,
+    mode: state.mode,
+    disciplines: disciplines
+  });
+  // Keep only last 100
+  if (store.history.length > 100) store.history = store.history.slice(-100);
+  saveStore(store);
 }
 
 function askFinishEarly() {
@@ -1422,6 +1824,7 @@ function finishNow() {
   state.screen = 'results';
   state.showFeedback = false;
   state.currentAnswer = null;
+  finalizeTest();
   render();
 }
 
@@ -1473,6 +1876,12 @@ function renderResults() {
         <div class="results-score">${percent}%</div>
         <div class="results-grade" style="color:${gradeColor}">${grade}</div>
         <div class="results-summary">${correct} верно · ${wrong - skipped} неверно${skipped ? ` · ${skipped} пропущено` : ''} из ${total}</div>
+        ${state.elapsedSec > 0 ? `
+          <div class="results-time">
+            <span class="results-time-main">${formatDuration(state.elapsedSec)}</span>
+            <span class="results-time-sub">общее время · ${Math.round(state.elapsedSec / total)} сек/вопрос в среднем</span>
+          </div>
+        ` : ''}
       </div>
       
       <div class="section-title">По типам заданий</div>
