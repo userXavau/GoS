@@ -1639,31 +1639,55 @@ function setMode(mode) {
 }
 
 // ===== Exam tickets: distribute ALL questions across 10 tickets =====
+
+// Deterministic PRNG (mulberry32) — same seed → same sequence
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = seed;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function shuffleWithRng(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function generateTickets() {
-  const tickets = Array.from({length: NUM_TICKETS}, (_, i) => ({num: i + 1, questions: []}));
+  // Use saved seed if present, otherwise create a new one and save it
+  if (!store.ticketSeed) {
+    store.ticketSeed = Math.floor(Math.random() * 2147483647) + 1;
+    saveStore(store);
+  }
+  const rng = mulberry32(store.ticketSeed);
   
-  // Group questions by discipline, then by type. Round-robin each group across tickets
-  // so disciplines AND types spread evenly. Rotate the starting ticket per group
-  // so the +1 remainder doesn't always pile onto ticket 1.
+  const tickets = Array.from({length: NUM_TICKETS}, (_, i) => ({num: i + 1, questions: []}));
   let startOffset = 0;
   const types = ['closed', 'matching', 'open'];
   
   DISCIPLINE_LIST.forEach(disc => {
     types.forEach(type => {
-      const group = shuffleArray(
-        ALL_QUESTIONS.filter(q => (q.discipline || 'Без дисциплины') === disc && q.type === type)
+      const group = shuffleWithRng(
+        ALL_QUESTIONS.filter(q => (q.discipline || 'Без дисциплины') === disc && q.type === type),
+        rng
       );
       group.forEach((q, i) => {
         const ticketIdx = (startOffset + i) % NUM_TICKETS;
         tickets[ticketIdx].questions.push(q);
       });
-      // advance offset by the remainder so the next group starts where this one left off
       startOffset = (startOffset + group.length) % NUM_TICKETS;
     });
   });
   
-  // Shuffle question order within each ticket (mix disciplines/types)
-  tickets.forEach(t => { t.questions = shuffleArray(t.questions); });
+  // Shuffle within each ticket (still seeded so order is also stable)
+  tickets.forEach(t => { t.questions = shuffleWithRng(t.questions, rng); });
   
   state.generatedTickets = tickets;
   return true;
@@ -1678,8 +1702,20 @@ function openTicketsScreen() {
 }
 
 function regenerateTickets() {
-  generateTickets();
-  render();
+  // Confirm — this destroys the current ticket layout
+  showModal({
+    title: 'Перетасовать билеты?',
+    body: 'Текущий набор билетов исчезнет — в новых билетах будет другой состав вопросов. История прохождения сохранится, но повторить тот же билет станет нельзя.',
+    buttons: [
+      {label: 'Отмена', style: 'btn-secondary'},
+      {label: 'Перетасовать', style: 'btn-primary', action: () => {
+        store.ticketSeed = Math.floor(Math.random() * 2147483647) + 1;
+        saveStore(store);
+        generateTickets();
+        render();
+      }}
+    ]
+  });
 }
 
 function startTicket(num) {
