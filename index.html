@@ -1390,6 +1390,20 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// Format options string: put each item on a new line.
+// Handles markers like "А)" / "А." / "1)" / "1." and group labels "Понятие" / "Содержание".
+function formatOptionsHtml(opts) {
+  if (!opts) return '';
+  let t = String(opts).trim();
+  // Group labels (matching tables)
+  t = t.replace(/\s*(Понятие|Содержание|Понятия|Содержания)\s+/g, '\n\n$1:\n');
+  // Single letter/digit followed by ) or . — turn into newline + marker
+  t = t.replace(/\s+([А-Я]|[1-9]|10|11|12)([)\.\,])\s+/g, '\n$1$2 ');
+  // Collapse extra blank lines
+  t = t.replace(/\n{3,}/g, '\n\n').trim();
+  return escapeHtml(t);
+}
+
 function showModal(opts) {
   state.modal = opts;
   renderModal();
@@ -1905,7 +1919,7 @@ function renderQuestion() {
         </button>
       </div>
       <div class="q-text">${escapeHtml(q.question)}</div>
-      ${q.options && q.type !== 'closed' ? `<div class="q-options">${escapeHtml(q.options)}</div>` : ''}
+      ${q.options && q.type !== 'closed' ? `<div class="q-options">${formatOptionsHtml(q.options)}</div>` : ''}
       
       ${inputHtml}
       
@@ -2180,7 +2194,7 @@ function renderResults() {
                   ${q.discipline ? escapeHtml(q.discipline) + ' · ' : ''}${q.type === 'closed' ? 'Закрытый' : q.type === 'matching' ? 'Соответствие' : 'Открытый'}
                 </div>
                 <div class="q">${escapeHtml(q.question)}</div>
-                ${q.options ? `<div class="q-options" style="font-size:12px;margin:8px 0;padding:10px 14px">${escapeHtml(q.options)}</div>` : ''}
+                ${q.options ? `<div class="q-options" style="font-size:12px;margin:8px 0;padding:10px 14px">${formatOptionsHtml(q.options)}</div>` : ''}
                 <div class="row ${a.isCorrect ? 'your-correct' : 'your'}">Твой ответ: ${escapeHtml(String(a.userAnswer))}</div>
                 ${!a.isCorrect ? `<div class="row correct-ans">Верно: ${escapeHtml(q.answer)}</div>` : ''}
               </div>
